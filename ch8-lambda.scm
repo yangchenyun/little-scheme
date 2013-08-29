@@ -163,3 +163,151 @@
 (multiremberT eq-tuna '(tuna hello world tuna))
 
 ; a complex example
+(define a-friend
+  (lambda (x y)
+    (null? y)))
+
+(define multiremberco
+  (lambda (a lat col)
+    (cond
+      ((null? lat) 
+        (col '() '()))
+      ((eq? (car lat) a)
+        (multiremberco a
+          (cdr lat)
+          (lambda (newlat seen)
+            (col newlat
+              (cons (car lat) seen)))))
+      (else
+        (multiremberco a
+          (cdr lat)
+          (lambda (newlat seen)
+            (col (cons (car lat) newlat)
+              seen)))))))
+
+; the simpliest recursion
+(multiremberco 'tuna '() a-friend) ; #t
+
+; the one step up in recursion
+(multiremberco 'tuna '(tuna) a-friend) ; #f
+; resolves to
+(multiremberco 'tuna
+          '()
+          (lambda (newlat seen)
+            (a-friend newlat
+              (cons 'tuna seen))))
+; resolves to
+((lambda (newlat seen)
+            (a-friend newlat
+              (cons 'tuna seen))) '() '())
+; resolves to
+(a-friend '() (cons 'tuna '())) ;#f
+
+
+; the one step up into recursion
+(multiremberco 'tuna '(and tuna) a-friend)
+
+(multiremberco 'tuna '(tuna) 
+  (lambda (newlat seen)
+              (a-friend (cons 'and newlat)
+                seen)))
+
+; build recursive functions to collection more than one value at one time
+; use lambda to build recursive functions, passed by parameters with changes
+
+(define multiinsertLR
+  (lambda (new oldL oldR lat)
+    (cond 
+      ((null? lat) '())
+      ((eq? (car lat) oldL) 
+        (cons new 
+          (cons oldL
+            (multiinsertLR new oldL oldR 
+              (cdr lat)))))
+      ((eq? (car lat) oldR) 
+        (cons oldR 
+          (cons new 
+            (multiinsertLR new oldL oldR
+              (cdr lat)))))
+      (else 
+        (cons (car lat)
+          (multiinsertLR new oldL oldR (cdr lat)))))))
+
+
+; turning it into using a recursive collector
+(define multiinsertLRco
+  (lambda (new oldL oldR lat col)
+    (cond
+      ((null? lat) 
+        (col '() 0 0))
+      ((eq? (car lat) oldL)
+        (multiinsertLRco new oldL oldR 
+          (cdr lat)
+          (lambda (newlat L R)
+          ; why the first param is a new lat built by cons?
+            (col (cons new (cons oldL newlat)) (+ L 1) R))))
+      ((eq? (car lat) oldR)
+        (multiinsertLRco new oldL oldR 
+          (cdr lat)
+          (lambda (newlat L R)
+            (col (cons oldR (cons new newlat)) L (+ R 1)))))
+      (else
+        (multiinsertLRco new oldL oldR
+          (cdr lat)
+          (lambda (newlat L R)
+            (col 
+              (cons 
+                (car lat) newlat) L R)))))))
+
+(define even?
+  (lambda (n) 
+  (= (mod n 2) 0)))
+
+
+(define evens-only*
+  (lambda (lat)
+    (cond 
+      ((null? lat) '())
+      ((atom? (car lat)) 
+        (cond 
+          ((even? (car lat)) (cons (car lat) (evens-only* (cdr lat))))
+          (else (evens-only* (cdr lat)))))
+      (else 
+        (cons 
+          (evens-only* (car lat)) 
+          (evens-only* (cdr lat)))))))
+
+(evens-only* '((2 5) 3 4 5 (2 3 4)))
+
+; use a collector with the evens-only*
+; the collector multiplies the even numbers and sums up the odd numbers
+(define evens-only*co
+  (lambda (lat col)
+    (cond
+      ((null? lat) (col '() 1 0))
+      ((atom? (car lat) 
+        (cond
+          ((even? (car lat) 
+            (evens-only*co (cdr lat) 
+              (lambda (newlat product sum)
+                (col 
+                  ; the result is collected here
+                  (cons (car lat) newlat)
+                  (* product (car lat))
+                  sum)))))
+          (else
+            (evens-only*co (cdr lat)
+              (lambda (newlat product sum)
+                (col newlat
+                  product
+                  (+ 1 sum))))))))
+      (else 
+        (evens-only*co (car l)
+          (lambda (al ap as)
+            (evens-only*co (cdr l)
+              (lambda (dl dp ds)
+                (col 
+                  (cons al dl)
+                  (* ap dp)
+                  (+ ap dp))))))))))
+
