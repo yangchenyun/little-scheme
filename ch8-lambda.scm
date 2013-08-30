@@ -1,11 +1,11 @@
 ; a more agostic rember function
-(define rember-f 
-  (lambda (test? a l) 
-    (cond 
+(define rember-f
+  (lambda (test? a l)
+    (cond
       ((null? l) '())
       ((test? a (car l)) (cdr l))
-      (else (cons 
-              (car l) 
+      (else (cons
+              (car l)
               (rember-f test? a (cdr l)))))))
 
 (rember-f = 5 '(6 2 5 3)) ; (6 2 3)
@@ -22,14 +22,14 @@
 ((eq-c? 3) 1) ;#f
 
 ; make rember-f a high-order function
-(define rember-f 
-  (lambda (test?) 
-    (lambda (a l) 
-      (cond 
+(define rember-f
+  (lambda (test?)
+    (lambda (a l)
+      (cond
         ((null? l) '())
         ((test? a (car l)) (cdr l))
-        (else (cons 
-                (car l) 
+        (else (cons
+                (car l)
                 ((rember-f test?) a (cdr l))))))))
 
 ((rember-f =) 5 '(6 2 5 3)) ; (6 2 3)
@@ -38,14 +38,14 @@
 
 ; transform insertL as well
 (define insertL-f
-  (lambda (test?) 
-    (lambda (new old lat) 
-      (cond    
+  (lambda (test?)
+    (lambda (new old lat)
+      (cond
         ((null? lat) '())
-        ((test? old (car lat)) 
+        ((test? old (car lat))
           (cons new lat))
-        (else (cons 
-                (car lat) 
+        (else (cons
+                (car lat)
                 ((insertL-f test?) new old (cdr lat))))))))
 
 ((insertL-f =) 10 5 '(6 2 5 5 3)) ; (6 2 3)
@@ -55,15 +55,15 @@
 
 ; ...for insertR as well
 (define insertR-f
-  (lambda (test?) 
-    (lambda (new old lat) 
-      (cond    
+  (lambda (test?)
+    (lambda (new old lat)
+      (cond
         ((null? lat) '())
-        ((test? old (car lat)) 
-          (cons old 
+        ((test? old (car lat))
+          (cons old
             (cons new (cdr lat))))
-        (else (cons 
-                (car lat) 
+        (else (cons
+                (car lat)
                 ((insertR-f test?) new old (cdr lat))))))))
 
 ((insertR-f =) 10 5 '(6 2 5 5 3)) ; (6 2 3)
@@ -85,17 +85,31 @@
 (define insert-g
   (lambda (seq)
     (lambda (new old lat)
-      (cond 
+      (cond
         ((null? lat) '())
         ((eq? old (car lat))
           (seq new old lat))
-        (else 
-          (cons 
+        (else
+          (cons
             (car lat)
             ((insert-g seq) new old (cdr lat))))))))
 
-((insert-g setL) 10 5 '(6 2 5 5 3)) ; (6 2 3)
-((insert-g setR) 10 5 '(6 2 5 5 3)) ; (6 2 3)
+((insert-g setL) 10 5 '(6 2 5 5 3))
+((insert-g setR) 10 5 '(6 2 5 5 3))
+
+; combine the previous two function variations
+(define insertg-f
+  (lambda (test? seq)
+    ; it returns a lambda
+    (lambda (new old lat)
+      (cond
+        ((null? lat) '())
+        ((test? old (car lat))
+          (seq new old lat))
+        (else
+          (cons (car lat)
+            ((insertg-f test? seq) new old (cdr lat))))))))
+((insertg-f equal? setR) 'hello '(a b c) '((a b c) 2 cat (a papa) 3))
 
 ; also do for subst
 (define seqS
@@ -113,16 +127,16 @@
 ; refactor the value function
 (define extract-operator
   (lambda (atom)
-    (cond 
+    (cond
       ((eq? atom '+) +)
       ((eq? atom 'x) x)
       ((eq? atom '^) ^))))
 
 (define value
-  (lambda (aexp) 
+  (lambda (aexp)
     (cond
       ((atom? aexp) aexp)
-      (else 
+      (else
         ((extract-operator (operator aexp))
           (value (first_sub_exp aexp))
           (value (second_sub_exp aexp)))))))
@@ -133,17 +147,17 @@
 
 
 ; now the multi rember
-(define multirember-f 
-  (lambda (test?) 
-    (lambda (a l) 
-      (cond 
+(define multirember-f
+  (lambda (test?)
+    (lambda (a l)
+      (cond
         ((null? l) '())
-        ((test? a (car l)) 
-          ((multirember-f test?) a 
+        ((test? a (car l))
+          ((multirember-f test?) a
             (cdr l)))
-        (else (cons 
-                (car l) 
-                ((multirember-f test?) a 
+        (else (cons
+                (car l)
+                ((multirember-f test?) a
                   (cdr l))))))))
 
 ; a modification
@@ -152,102 +166,83 @@
 
 (define multiremberT
   (lambda (test? lat)
-    (cond 
+    (cond
       ((null? lat) '())
       ((test? (car lat)) (multiremberT test? (cdr lat)))
-      (else 
-        (cons 
-          (car lat) 
+      (else
+        (cons
+          (car lat)
           (multiremberT test? (cdr lat)))))))
 
 (multiremberT eq-tuna '(tuna hello world tuna))
 
 ; a complex example
+(define multirember-col
+  (lambda (a lat col)
+    (cond ((null? lat) (col '() '()))
+          ((eq? a (car lat))
+            (multirember-col a (cdr lat)
+              ; the collection happens in the collector function
+              (lambda (removed left)
+                (col (cons (car lat) removed) left))))
+          (else
+            (multirember-col a (cdr lat)
+              (lambda (removed left)
+                (col removed (cons (car lat) left))))))))
+
+(define removal-col
+  (lambda (rem-lat remain-lat)
+    (cons rem-lat remain-lat)))
+(define a 'cup)
+(define lat '(coffee cup tea cup and hick cup))
+(multirember-col a lat (lambda (x y) (length y)))
+
 (define a-friend
   (lambda (x y)
-    (null? y)))
-
-(define multiremberco
-  (lambda (a lat col)
-    (cond
-      ((null? lat) 
-        (col '() '()))
-      ((eq? (car lat) a)
-        (multiremberco a
-          (cdr lat)
-          (lambda (newlat seen)
-            (col newlat
-              (cons (car lat) seen)))))
-      (else
-        (multiremberco a
-          (cdr lat)
-          (lambda (newlat seen)
-            (col (cons (car lat) newlat)
-              seen)))))))
+    (null? x)))
 
 ; the simpliest recursion
-(multiremberco 'tuna '() a-friend) ; #t
+(multirember-col 'tuna '() a-friend) ; #t
 
 ; the one step up in recursion
-(multiremberco 'tuna '(tuna) a-friend) ; #f
-; resolves to
-(multiremberco 'tuna
-          '()
-          (lambda (newlat seen)
-            (a-friend newlat
-              (cons 'tuna seen))))
-; resolves to
-((lambda (newlat seen)
-            (a-friend newlat
-              (cons 'tuna seen))) '() '())
-; resolves to
-(a-friend '() (cons 'tuna '())) ;#f
-
-
-; the one step up into recursion
-(multiremberco 'tuna '(and tuna) a-friend)
-
-(multiremberco 'tuna '(tuna) 
-  (lambda (newlat seen)
-              (a-friend (cons 'and newlat)
-                seen)))
+(multirember-col 'tuna '(tuna) a-friend) ; #f
 
 ; build recursive functions to collection more than one value at one time
 ; use lambda to build recursive functions, passed by parameters with changes
 
+; =================== USE FUNCTION TO COLLECT RESULTS ===================
+; combine the multiinsertL and multiinsertR
+
 (define multiinsertLR
   (lambda (new oldL oldR lat)
-    (cond 
-      ((null? lat) '())
-      ((eq? (car lat) oldL) 
-        (cons new 
-          (cons oldL
-            (multiinsertLR new oldL oldR 
-              (cdr lat)))))
-      ((eq? (car lat) oldR) 
-        (cons oldR 
-          (cons new 
-            (multiinsertLR new oldL oldR
-              (cdr lat)))))
-      (else 
-        (cons (car lat)
-          (multiinsertLR new oldL oldR (cdr lat)))))))
+    (cond ((null? lat) '())
+          ((eq? oldL (car lat))
+            (cons new
+              (cons oldL
+                (multiinsertLR new oldL oldR (cdr lat)))))
+          ((eq? oldR (car lat))
+            (cons oldR
+              (cons new
+                (multiinsertLR new oldL oldR (cdr lat)))))
+          (else (cons (car lat)
+                  (multiinsertLR new oldL oldR (cdr lat)))))))
 
 
 ; turning it into using a recursive collector
 (define multiinsertLRco
   (lambda (new oldL oldR lat col)
     (cond
-      ((null? lat) 
+      ((null? lat)
         (col '() 0 0))
       ((eq? (car lat) oldL)
-        (multiinsertLRco new oldL oldR 
+        (multiinsertLRco new oldL oldR
           (cdr lat)
           (lambda (newlat L R)
-          ; why the first param is a new lat built by cons?
+            ; newlat here is the lat produced by
+            ; (inner recursion) apply multiinsertLR-col on new oldL oldR and (cdr lat)
             (col (cons new (cons oldL newlat)) (+ L 1) R))))
       ((eq? (car lat) oldR)
-        (multiinsertLRco new oldL oldR 
+        (multiinsertLRco new oldL oldR
           (cdr lat)
           (lambda (newlat L R)
             (col (cons oldR (cons new newlat)) L (+ R 1)))))
@@ -255,59 +250,95 @@
         (multiinsertLRco new oldL oldR
           (cdr lat)
           (lambda (newlat L R)
-            (col 
-              (cons 
+            (col
+              (cons
                 (car lat) newlat) L R)))))))
 
-(define even?
-  (lambda (n) 
-  (= (mod n 2) 0)))
+; with another collection algorithm
+(define multiinsertLR-col
+  (lambda (new oldL oldR lat col)
+    (cond ((null? lat) (col '() '() '()))
+      ((eq? oldL (car lat))
+        (multiinsertLR-col new oldL oldR (cdr lat)
+          (lambda (newlat left right)
+            (col
+              (cons new (cons oldL newlat))
+              (cons oldL left)
+              right))))
+      ((eq? oldR (car lat))
+        (multiinsertLR-col new oldL oldR (cdr lat)
+          (lambda (newlat left right)
+            (col
+              (cons oldR (cons new newlat))
+              left
+              (cons oldR right)))))
+      (else
+        (multiinsertLR-col new oldL oldR (cdr lat)
+          (lambda (newlat left right)
+            (col
+              (cons (car lat) newlat)
+              left
+              right)))))))
 
+(define watcher
+  (lambda (lat left right)
+    (cons lat (cons left right))))
+
+(define new 'e)
+(define oldL 'd)
+(define oldR 'g)
+(define lat '(a b c d f g d h))
+(multiinsertLR-col new oldL oldR lat watcher)
+
+(define even?
+  (lambda (n)
+  (= (mod n 2) 0)))
 
 (define evens-only*
   (lambda (lat)
-    (cond 
+    (cond
       ((null? lat) '())
-      ((atom? (car lat)) 
-        (cond 
+      ((atom? (car lat))
+        (cond
           ((even? (car lat)) (cons (car lat) (evens-only* (cdr lat))))
           (else (evens-only* (cdr lat)))))
-      (else 
-        (cons 
-          (evens-only* (car lat)) 
+      (else
+        (cons
+          (evens-only* (car lat))
           (evens-only* (cdr lat)))))))
 
 (evens-only* '((2 5) 3 4 5 (2 3 4)))
 
 ; use a collector with the evens-only*
 ; the collector multiplies the even numbers and sums up the odd numbers
-(define evens-only*co
+(define even-only*-col
   (lambda (lat col)
     (cond
       ((null? lat) (col '() 1 0))
-      ((atom? (car lat) 
+      ((atom? (car lat))
         (cond
-          ((even? (car lat) 
-            (evens-only*co (cdr lat) 
-              (lambda (newlat product sum)
-                (col 
-                  ; the result is collected here
-                  (cons (car lat) newlat)
-                  (* product (car lat))
-                  sum)))))
-          (else
-            (evens-only*co (cdr lat)
-              (lambda (newlat product sum)
-                (col newlat
-                  product
-                  (+ 1 sum))))))))
-      (else 
-        (evens-only*co (car l)
-          (lambda (al ap as)
-            (evens-only*co (cdr l)
-              (lambda (dl dp ds)
-                (col 
-                  (cons al dl)
-                  (* ap dp)
-                  (+ ap dp))))))))))
+          ((even? (car lat))
+            (even-only*-col (cdr lat)
+              (lambda (newlat p s)
+              (col
+                (cons (car lat) newlat)
+                (* p (car lat))
+                s))))
+          ; odd number
+          (else (even-only*-col (cdr lat)
+            (lambda (newlat p s)
+              (col newlat p (+ (car lat) s)))))))
+      ; recursive into (car lat)
+      (else (even-only*-col (car lat)
+        ; recursively use collector
+        (lambda (al ap as)
+          (even-only*-col (cdr lat)
+            (lambda (dl dp ds)
+              (col
+                (cons al dl)
+                (* ap dp)
+                (+ as ds))))))))))
 
+(even-only*-col '((2 5) 3 4 5 (2 3 4))
+  (lambda (lat p s)
+    (cons p (cons s lat))))
